@@ -40,6 +40,20 @@ class MapViewModel extends ChangeNotifier {
       debugPrint("Fallo el GPS, intentando por IP: $e");
       await _getLocationByIP();
     } finally {
+      _allPets.clear();
+      _allPets.add(
+          PetMarker(
+            id: 'rocky_1',
+            position: LatLng(
+              _userLocation.latitude + 0.0015,
+              _userLocation.longitude + 0.0015,
+            ),
+            imageUrl:
+            'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80',
+            isLost: true,
+          ),
+      );
+
       _isLoadingLocation = false;
       notifyListeners(); // Avisa a la UI que ya terminó de cargar
     }
