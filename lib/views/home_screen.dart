@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'map_screen.dart';
+import 'pet_profile_screen.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {

@@ -9,6 +9,8 @@ import 'viewmodels/map_viewmodel.dart'; // <-- Nuevo import
 import 'views/auth_screen.dart';
 import 'views/home_screen.dart';
 import 'views/create_report_screen.dart';
+import 'views/map_screen.dart';
+import 'views/pet_profile_screen.dart';
 
 void main() {
   runApp(
@@ -39,7 +41,9 @@ class LostPawsApp extends StatelessWidget {
       routes: {
         '/auth': (context) => const AuthScreen(),
         '/home': (context) => const HomeScreen(),
+        '/map': (context) => const MapScreen(),
         '/create_report': (context) => const CreateReportScreen(),
+        '/pet_profile': (context) => const PetProfileView(),
       },
     );
   }

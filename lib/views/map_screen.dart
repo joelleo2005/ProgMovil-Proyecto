@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'pet_profile_screen.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class MapScreen extends StatefulWidget {
@@ -240,32 +241,50 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Widget gráfico para el avatar del perro y su estado (Rojo/Verde)
+  // Widget gráfico con una preview de la mascota buscada
   Widget _buildPetMarker(PetMarker pet) {
-    return Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PetProfileView(), // o PetProfileScreen() según el nombre de tu clase
           ),
-          child: CircleAvatar(
-            radius: 22,
-            backgroundImage: NetworkImage(pet.imageUrl),
+        );
+      },
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                )
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 22,
+              backgroundImage: NetworkImage(pet.imageUrl),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: pet.isLost ? const Color(0xFFFF5252) : const Color(0xFF4CAF50),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+          const SizedBox(height: 4),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: pet.isLost
+                  ? const Color(0xFFFF5252)
+                  : const Color(0xFF4CAF50),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
