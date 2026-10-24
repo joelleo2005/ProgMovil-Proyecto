@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'map_screen.dart';
 import 'pet_profile_screen.dart';
+import 'reports_screen.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
       create: (_) => MapViewModel(),
       child: const MapScreen(),
     ),
-    const Center(child: Text('Mis reportes (Próximamente)')),
+    const ReportsScreen(),
     const Center(child: Text('Perfil (Próximamente)')),
   ];
 
