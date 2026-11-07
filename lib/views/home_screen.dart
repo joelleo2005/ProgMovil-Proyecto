@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'map_screen.dart';
 import 'pet_profile_screen.dart';
 import 'reports_screen.dart';
+import 'user_profile_screen.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: const MapScreen(),
     ),
     const ReportsScreen(),
-    const Center(child: Text('Perfil (Próximamente)')),
+    const UserProfileScreen(),
   ];
 
   @override
