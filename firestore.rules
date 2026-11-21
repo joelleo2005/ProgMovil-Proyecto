@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Reglas de seguridad de Cloud Firestore para LostPaws.
+// Cópialas en: Consola de Firebase > Firestore Database > Reglas > Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Perfiles: cualquier usuario autenticado puede leerlos,
+    // pero cada uno solo crea/edita su propio documento.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Reportes de mascotas perdidas / encontradas.
+    match /pet_reports/{reportId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+      // Solo el autor puede editar, marcar como rescatado o borrar su reporte.
+      allow update: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid
+                    && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid;
+    }
+  }
+}
