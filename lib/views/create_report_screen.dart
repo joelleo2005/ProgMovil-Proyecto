@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import '../models/report.dart';
+import '../repositories/report_repository.dart';
 // Importa ambos ViewModels
 import '../viewmodels/create_report_viewmodel.dart';
 import '../viewmodels/map_viewmodel.dart';
@@ -17,7 +18,10 @@ class CreateReportScreen extends StatelessWidget {
 
     return ChangeNotifierProvider(
       // 2. Le pasamos esa ubicación como punto de partida al reporte
-      create: (_) => CreateReportViewModel(initialLocation: userLocation),
+      create: (context) => CreateReportViewModel(
+        context.read<ReportRepository>(),
+        initialLocation: userLocation,
+      ),
       child: const _CreateReportView(),
     );
   }
@@ -34,6 +38,60 @@ class _CreateReportViewState extends State<_CreateReportView> {
   // Añadimos el controlador para el mini-mapa
   final MapController _reportMapController = MapController();
   bool _isMapInitialized = false;
+
+  // Estado del formulario (los textos viven en la View; la lógica en el ViewModel)
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _characteristicsController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _characteristicsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate(CreateReportViewModel viewModel) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: viewModel.dateTime,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now, // no se puede reportar algo que aún no pasó
+    );
+    if (picked != null) viewModel.setDate(picked);
+  }
+
+  Future<void> _pickTime(CreateReportViewModel viewModel) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(viewModel.dateTime),
+    );
+    if (picked != null) viewModel.setTime(picked);
+  }
+
+  Future<void> _publish(CreateReportViewModel viewModel) async {
+    FocusScope.of(context).unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final report = await viewModel.publishReport(
+      name: _nameController.text,
+      description: _descriptionController.text,
+      characteristics: _characteristicsController.text,
+    );
+
+    if (!mounted) return;
+    if (report != null) {
+      // Volvemos al mapa devolviendo el reporte para centrar la cámara en él.
+      Navigator.pop(context, report);
+    } else if (viewModel.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(viewModel.errorMessage!)),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +112,9 @@ class _CreateReportViewState extends State<_CreateReportView> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
-          child: Column(
+          child: Form(
+            key: _formKey,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header con botón de regreso
@@ -175,15 +235,34 @@ class _CreateReportViewState extends State<_CreateReportView> {
 
               // Formulario de texto
               _buildSectionTitle('Nombre (Si se sabe)'),
-              _buildTextField(hint: 'Ej. Rocky, Luna...'),
+              _buildTextField(
+                controller: _nameController,
+                hint: 'Ej. Rocky, Luna...',
+              ),
               const SizedBox(height: 16),
 
               _buildSectionTitle('Descripción'),
-              _buildTextField(hint: 'Describe dónde lo viste, comportamiento, collar, etc.', maxLines: 3),
+              _buildTextField(
+                controller: _descriptionController,
+                hint: 'Describe dónde lo viste, comportamiento, collar, etc.',
+                maxLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'La descripción es obligatoria';
+                  }
+                  if (value.trim().length < 10) {
+                    return 'Cuéntanos un poco más (mínimo 10 caracteres)';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 16),
 
               _buildSectionTitle('Color / Características'),
-              _buildTextField(hint: 'Ej. pelaje dorado, ojos café, collar rojo'),
+              _buildTextField(
+                controller: _characteristicsController,
+                hint: 'Ej. pelaje dorado, ojos café, collar rojo',
+              ),
               const SizedBox(height: 24),
 
 
@@ -282,7 +361,11 @@ class _CreateReportViewState extends State<_CreateReportView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildSectionTitle('Fecha'),
-                        _buildTextField(hint: '31 ago 2026'),
+                        _buildPickerField(
+                          icon: Icons.calendar_today,
+                          label: viewModel.dateLabel,
+                          onTap: () => _pickDate(viewModel),
+                        ),
                       ],
                     ),
                   ),
@@ -292,7 +375,11 @@ class _CreateReportViewState extends State<_CreateReportView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildSectionTitle('Hora'),
-                        _buildTextField(hint: '10:45 AM'),
+                        _buildPickerField(
+                          icon: Icons.access_time,
+                          label: viewModel.timeLabel,
+                          onTap: () => _pickTime(viewModel),
+                        ),
                       ],
                     ),
                   ),
@@ -304,20 +391,24 @@ class _CreateReportViewState extends State<_CreateReportView> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    viewModel.publishReport();
-                    Navigator.pop(context); // Volver al mapa
-                  },
+                  onPressed: viewModel.isSaving ? null : () => _publish(viewModel),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: brandBrown,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Publicar reporte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: viewModel.isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Publicar reporte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 20),
             ],
+          ),
           ),
         ),
       ),
@@ -334,9 +425,17 @@ class _CreateReportViewState extends State<_CreateReportView> {
     );
   }
 
-  Widget _buildTextField({required String hint, int maxLines = 1}) {
-    return TextField(
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
       maxLines: maxLines,
+      validator: validator,
+      textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -346,6 +445,34 @@ class _CreateReportViewState extends State<_CreateReportView> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  /// Campo que parece un input pero abre un selector (fecha u hora).
+  Widget _buildPickerField({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF906A55)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+            ),
+          ],
         ),
       ),
     );

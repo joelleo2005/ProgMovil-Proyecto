@@ -15,6 +15,8 @@ import '../models/report.dart';
 class ReportRepository extends ChangeNotifier {
   /// Id provisional del usuario logueado, hasta conectar Firebase Auth.
   static const String demoCurrentUserId = 'usuario_demo';
+  static const String demoCurrentUserName = 'Alexandro de la Vega';
+  static const String demoCurrentUserPhone = '+51 987 654 321';
 
   final List<Report> _reports = [];
 
@@ -93,8 +95,8 @@ class ReportRepository extends ChangeNotifier {
         date: now.subtract(const Duration(days: 1)),
         createdAt: now.subtract(const Duration(days: 1)),
         ownerId: demoCurrentUserId,
-        ownerName: 'Alexandro de la Vega',
-        ownerPhone: '+51 987 654 321',
+        ownerName: demoCurrentUserName,
+        ownerPhone: demoCurrentUserPhone,
       ),
       Report(
         id: 'demo_encontrado',

@@ -524,7 +524,7 @@ class _PetProfileViewState extends State<_PetProfileBody> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '${_viewModel.coordinatesLabel} · ${PetProfileViewModel.timeAgo(_report.date)}',
+                      '${_viewModel.coordinatesLabel} · ${_viewModel.lastSeenLabel}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,

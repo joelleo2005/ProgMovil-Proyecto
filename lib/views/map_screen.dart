@@ -23,6 +23,22 @@ class _MapScreenState extends State<MapScreen> {
     _mapController.move(location, 15.0);
   }
 
+  /// Abre "Crear reporte" y, si se publicó, centra el mapa en el nuevo marcador.
+  Future<void> _openCreateReport() async {
+    final result = await Navigator.pushNamed(context, '/create_report');
+    if (!mounted || result is! Report) return;
+
+    final viewModel = context.read<MapViewModel>();
+    // Si el filtro actual ocultaría el reporte nuevo, volvemos a "Todos".
+    if (!viewModel.filteredReports.any((r) => r.id == result.id)) {
+      viewModel.setFilter('Todos');
+    }
+    _mapController.move(result.location, 16.0);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('¡Reporte de ${result.displayName} publicado!')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<MapViewModel>();
@@ -207,9 +223,7 @@ class _MapScreenState extends State<MapScreen> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/create_report');
-                  },
+                  onPressed: _openCreateReport,
                   icon: const Icon(Icons.add, color: Colors.white),
                   label: const Text('Reportar Mascota', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(

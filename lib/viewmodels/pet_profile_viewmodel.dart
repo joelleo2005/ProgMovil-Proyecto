@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/report.dart';
 import '../repositories/report_repository.dart';
+import '../utils/formatters.dart';
 
 /// ViewModel del detalle de un reporte.
 ///
@@ -28,15 +29,17 @@ class PetProfileViewModel extends ChangeNotifier {
     return initials.isEmpty ? '?' : initials.join();
   }
 
-  String get dateLabel => report == null ? '' : formatDate(report!.date);
-  String get timeLabel => report == null ? '' : formatTime(report!.date);
-  String get publishedLabel => report == null ? '' : 'Publicado ${timeAgo(report!.createdAt)}';
+  String get dateLabel => report == null ? '' : Formatters.date(report!.date);
+  String get timeLabel => report == null ? '' : Formatters.time(report!.date);
+  String get publishedLabel => report == null ? '' : 'Publicado ${Formatters.timeAgo(report!.createdAt)}';
 
   String get coordinatesLabel {
     final r = report;
     if (r == null) return '';
     return '${r.location.latitude.toStringAsFixed(4)}, ${r.location.longitude.toStringAsFixed(4)}';
   }
+
+  String get lastSeenLabel => report == null ? '' : Formatters.timeAgo(report!.date);
 
   Future<void> markRescued() async {
     await _repository.markResolved(reportId);
@@ -64,34 +67,6 @@ class PetProfileViewModel extends ChangeNotifier {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Abriendo $channel...')),
     );
-  }
-
-  // ---- Formato de fechas (sin paquetes extra) ----
-
-  static const _months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-  ];
-
-  /// Ej. "31 ago 2026"
-  static String formatDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
-
-  /// Ej. "10:30 AM"
-  static String formatTime(DateTime d) {
-    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
-    final minutes = d.minute.toString().padLeft(2, '0');
-    final period = d.hour < 12 ? 'AM' : 'PM';
-    return '$hour12:$minutes $period';
-  }
-
-  /// Ej. "hace 5 min", "hace 2 h", "hace 3 días"
-  static String timeAgo(DateTime d) {
-    final diff = DateTime.now().difference(d);
-    if (diff.inMinutes < 1) return 'hace un momento';
-    if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'hace ${diff.inHours} h';
-    if (diff.inDays == 1) return 'hace 1 día';
-    return 'hace ${diff.inDays} días';
   }
 
   void _onRepositoryChanged() => notifyListeners();

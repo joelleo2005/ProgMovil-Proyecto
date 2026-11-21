@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:lost_paws/models/report.dart';
 import 'package:lost_paws/repositories/report_repository.dart';
+import 'package:lost_paws/viewmodels/create_report_viewmodel.dart';
 
 Report _report({
   required String id,
@@ -80,5 +81,58 @@ void main() {
       ownerName: 'O',
     );
     expect(encontrado.displayName, 'Mascota encontrada');
+  });
+
+  group('CreateReportViewModel', () {
+    test('publishReport guarda el reporte en el repositorio', () async {
+      final repo = ReportRepository();
+      final vm = CreateReportViewModel(repo, initialLocation: const LatLng(-12.0, -77.0));
+      vm.setReportType(ReportType.encontrada);
+      vm.setPetType(PetType.gato);
+
+      final report = await vm.publishReport(
+        name: '  Luna ',
+        description: 'Gata gris encontrada en el parque',
+        characteristics: 'Collar azul',
+      );
+
+      expect(report, isNotNull);
+      expect(repo.reports.length, 1);
+      expect(repo.reports.first.name, 'Luna');
+      expect(repo.reports.first.type, ReportType.encontrada);
+      expect(repo.reports.first.petType, PetType.gato);
+      expect(repo.reports.first.ownerId, ReportRepository.demoCurrentUserId);
+      expect(vm.isSaving, false);
+    });
+
+    test('nombre vacío se guarda como null', () async {
+      final repo = ReportRepository();
+      final vm = CreateReportViewModel(repo, initialLocation: const LatLng(0, 0));
+
+      final report = await vm.publishReport(
+        name: '   ',
+        description: 'Perro encontrado sin collar',
+        characteristics: '',
+      );
+
+      expect(report?.name, isNull);
+      expect(report?.displayName, 'Mascota perdida');
+    });
+
+    test('no permite fechas en el futuro', () async {
+      final repo = ReportRepository();
+      final vm = CreateReportViewModel(repo, initialLocation: const LatLng(0, 0));
+      vm.setDate(DateTime.now().add(const Duration(days: 2)));
+
+      final report = await vm.publishReport(
+        name: 'Rocky',
+        description: 'Descripción suficientemente larga',
+        characteristics: '',
+      );
+
+      expect(report, isNull);
+      expect(vm.errorMessage, isNotNull);
+      expect(repo.reports, isEmpty);
+    });
   });
 }
