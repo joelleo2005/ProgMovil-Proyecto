@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-enum ReportType { perdida, encontrada }
-enum PetType { perro, gato, otro }
+import '../models/report.dart';
 
 class CreateReportViewModel extends ChangeNotifier {
   // Recibimos la ubicación GPS del dispositivo al abrir la pantalla

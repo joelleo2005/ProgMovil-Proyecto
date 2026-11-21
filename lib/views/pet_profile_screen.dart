@@ -1,20 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:provider/provider.dart';
+
+import '../models/report.dart';
+import '../repositories/report_repository.dart';
+import '../viewmodels/map_viewmodel.dart';
 import '../viewmodels/pet_profile_viewmodel.dart';
 
-class PetProfileView extends StatefulWidget {
-  const PetProfileView({super.key});
+/// Detalle de un reporte. Recibe solo el id; los datos se leen del repositorio.
+class PetProfileView extends StatelessWidget {
+  final String reportId;
+  const PetProfileView({super.key, required this.reportId});
 
   @override
-  State<PetProfileView> createState() => _PetProfileViewState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => PetProfileViewModel(
+        context.read<ReportRepository>(),
+        reportId: reportId,
+      ),
+      child: const _PetProfileBody(),
+    );
+  }
 }
 
-class _PetProfileViewState extends State<PetProfileView> {
-  late final PetProfileViewModel _viewModel;
+class _PetProfileBody extends StatefulWidget {
+  const _PetProfileBody();
+
+  @override
+  State<_PetProfileBody> createState() => _PetProfileViewState();
+}
+
+class _PetProfileViewState extends State<_PetProfileBody> {
+  late PetProfileViewModel _viewModel;
+  late Report _report;
 
   // Paleta de diseño
   static const Color primaryDark = Color(0xFF221915);
   static const Color textMuted = Color(0xFF8C827A);
   static const Color alertRed = Color(0xFFFF3B30);
+  static const Color foundGreen = Color(0xFF34C759);
+  static const Color resolvedGrey = Color(0xFF8E8E93);
   static const Color cardBorder = Color(0xFFECE7E2);
 
   // Nuevos colores para la sección de contacto
@@ -23,13 +49,19 @@ class _PetProfileViewState extends State<PetProfileView> {
   static const Color contactCardBg = Color(0xFFF4EFEB);
 
   @override
-  void initState() {
-    super.initState();
-    _viewModel = PetProfileViewModel();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    _viewModel = context.watch<PetProfileViewModel>();
+    final report = _viewModel.report;
+
+    // El reporte pudo ser eliminado mientras la pantalla estaba abierta.
+    if (report == null) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('Este reporte ya no está disponible.')),
+      );
+    }
+    _report = report;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBF9F6),
       body: SingleChildScrollView(
@@ -43,7 +75,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _viewModel.name,
+                    _report.displayName,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -52,7 +84,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _viewModel.category,
+                    _report.petTypeLabel,
                     style: const TextStyle(
                       fontSize: 14,
                       color: textMuted,
@@ -64,9 +96,10 @@ class _PetProfileViewState extends State<PetProfileView> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _viewModel.tags
-                        .map((tag) => _InfoChip(label: tag))
-                        .toList(),
+                    children: [
+                      _InfoChip(label: _viewModel.dateLabel),
+                      _InfoChip(label: _viewModel.timeLabel),
+                    ],
                   ),
                   const SizedBox(height: 22),
 
@@ -80,7 +113,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _viewModel.description,
+                    _report.description,
                     style: const TextStyle(
                       fontSize: 13,
                       height: 1.45,
@@ -89,51 +122,25 @@ class _PetProfileViewState extends State<PetProfileView> {
                   ),
                   const SizedBox(height: 22),
 
-                  const Text(
-                    'Características',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: primaryDark,
+                  if (_report.characteristics.trim().isNotEmpty) ...[
+                    const Text(
+                      'Características',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: primaryDark,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Color',
-                          value: _viewModel.features['Color'] ?? '',
-                        ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _FeatureCard(
+                        title: 'Color / señas',
+                        value: _report.characteristics,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Tamaño',
-                          value: _viewModel.features['Tamaño'] ?? '',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Edad',
-                          value: _viewModel.features['Edad'] ?? '',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Señas',
-                          value: _viewModel.features['Señas'] ?? '',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
+                    ),
+                    const SizedBox(height: 22),
+                  ],
 
                   const Text(
                     'Última ubicación conocida',
@@ -148,9 +155,11 @@ class _PetProfileViewState extends State<PetProfileView> {
 
                   // --- Nueva sección inferior ---
                   const SizedBox(height: 22),
-                  _buildContactCard(context),
-                  const SizedBox(height: 16),
-                  _buildBottomActions(context),
+                  // Quien publicó no necesita contactarse a sí mismo;
+                  // solo él puede editar o marcar como rescatado.
+                  if (!_viewModel.isOwner) _buildContactCard(context),
+                  if (_viewModel.isOwner && _report.isActive) _buildBottomActions(context),
+                  if (!_report.isActive) _buildResolvedBanner(),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -201,7 +210,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _viewModel.ownerName,
+                      _report.ownerName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -210,7 +219,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _viewModel.publishInfo,
+                      _viewModel.publishedLabel,
                       style: const TextStyle(
                         fontSize: 12,
                         color: textMuted,
@@ -276,7 +285,7 @@ class _PetProfileViewState extends State<PetProfileView> {
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton(
-            onPressed: () => _viewModel.onMarkRescued(context),
+            onPressed: () => _confirmRescue(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: successGreen,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -306,7 +315,7 @@ class _PetProfileViewState extends State<PetProfileView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min, // Para que ocupe solo el espacio necesario
@@ -323,23 +332,23 @@ class _PetProfileViewState extends State<PetProfileView> {
             ListTile(
               leading: const Icon(Icons.mail, color: Color(0xFFEA4335)), // Rojo Google
               title: const Text('Gmail', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaGmail(context),
+              onTap: () => _viewModel.shareVia(sheetContext, 'Gmail'),
             ),
             ListTile(
               leading: const Icon(Icons.email_outlined, color: textMuted),
               title: const Text('Otro correo', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaEmail(context),
+              onTap: () => _viewModel.shareVia(sheetContext, 'otro correo'),
             ),
             ListTile(
               leading: const Icon(Icons.sms, color: Color(0xFF007AFF)), // Azul SMS
               title: const Text('SMS', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaSMS(context),
+              onTap: () => _viewModel.shareVia(sheetContext, 'SMS'),
             ),
             ListTile(
               // Usamos un ícono de chat verde para simular WhatsApp (Material Icons no tiene el logo oficial)
               leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
               title: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaWhatsApp(context),
+              onTap: () => _viewModel.shareVia(sheetContext, 'WhatsApp'),
             ),
           ],
         ),
@@ -355,7 +364,7 @@ class _PetProfileViewState extends State<PetProfileView> {
           width: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: NetworkImage(_viewModel.imageUrl),
+              image: NetworkImage(_report.imageUrl),
               fit: BoxFit.cover,
             ),
           ),
@@ -369,7 +378,7 @@ class _PetProfileViewState extends State<PetProfileView> {
             children: [
               _buildCircularButton(
                 icon: Icons.arrow_back_ios_new,
-                onTap: () => _viewModel.onBackPressed(context),
+                onTap: () => Navigator.maybePop(context),
               ),
               _buildCircularButton(
                 icon: Icons.share_outlined,
@@ -384,11 +393,13 @@ class _PetProfileViewState extends State<PetProfileView> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: alertRed,
+              color: !_report.isActive
+                  ? resolvedGrey
+                  : (_report.isLost ? alertRed : foundGreen),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              _viewModel.status,
+              _report.isActive ? _report.typeLabel : 'Resuelto',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -412,7 +423,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                 const Icon(Icons.location_on, size: 14, color: Color(0xFF6B4F3B)),
                 const SizedBox(width: 4),
                 Text(
-                  _viewModel.distance,
+                  context.read<MapViewModel>().distanceLabel(_report),
                   style: const TextStyle(
                     color: Color(0xFF463A33),
                     fontWeight: FontWeight.w600,
@@ -454,29 +465,41 @@ class _PetProfileViewState extends State<PetProfileView> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cardBorder),
-        image: DecorationImage(
-          image: NetworkImage(_viewModel.mapUrl),
-          fit: BoxFit.cover,
-        ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  shape: BoxShape.circle,
-                ),
-              ),
+          // Mini mapa no interactivo centrado en el reporte. Usa el mismo
+          // TileLayer que el mapa principal (con userAgentPackageName), que es
+          // lo que exige OpenStreetMap para no bloquear las imágenes.
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: _report.location,
+              initialZoom: 16,
+              interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
             ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.ulima.lostpaws',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _report.location,
+                    width: 26,
+                    height: 26,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           Positioned(
             left: 10,
@@ -501,7 +524,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      _viewModel.lastLocation,
+                      '${_viewModel.coordinatesLabel} · ${PetProfileViewModel.timeAgo(_report.date)}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -516,6 +539,57 @@ class _PetProfileViewState extends State<PetProfileView> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildResolvedBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: foundGreen.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle, color: foundGreen),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Este caso ya fue resuelto. ¡La mascota volvió a casa!',
+              style: TextStyle(fontWeight: FontWeight.w600, color: primaryDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmRescue(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Marcar como rescatado?'),
+        content: const Text('El reporte dejará de aparecer en el mapa.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: successGreen),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await _viewModel.markRescued();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('¡Mascota marcada como rescatada!')),
     );
   }
 }

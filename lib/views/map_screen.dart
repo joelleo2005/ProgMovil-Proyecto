@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'pet_profile_screen.dart';
+import '../models/report.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class MapScreen extends StatefulWidget {
@@ -80,12 +81,12 @@ class _MapScreenState extends State<MapScreen> {
             ),
             // Marcadores de mascotas en el mapa
             MarkerLayer(
-              markers: viewModel.filteredPets.map((pet) {
+              markers: viewModel.filteredReports.map((report) {
                 return Marker(
-                  point: pet.position,
+                  point: report.location,
                   width: 60,
                   height: 75,
-                  child: _buildPetMarker(pet),
+                  child: _buildPetMarker(report, viewModel),
                 );
               }).toList(),
             ),
@@ -242,7 +243,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // Widget gráfico con una preview de la mascota buscada
-  Widget _buildPetMarker(PetMarker pet) {
+  Widget _buildPetMarker(Report pet, MapViewModel viewModel) {
     return GestureDetector(
       onTap: () {
         showModalBottomSheet(
@@ -265,15 +266,15 @@ class _MapScreenState extends State<MapScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Rocky',
-                        style: TextStyle(
+                      Text(
+                        pet.displayName,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        pet.isLost ? 'Perdido · 0.3 km' : 'Encontrado',
+                        '${pet.typeLabel} · ${viewModel.distanceLabel(pet)}',
                         style: const TextStyle(color: Colors.grey),
                       ),
                     ],
@@ -293,7 +294,7 @@ class _MapScreenState extends State<MapScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const PetProfileView(),
+                        builder: (context) => PetProfileView(reportId: pet.id),
                       ),
                     );
                   },
