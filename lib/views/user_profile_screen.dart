@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../utils/pet_image_helper.dart';
 import '../viewmodels/user_profile_viewmodel.dart';
 import 'help_center_screen.dart';
 
@@ -36,6 +39,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _pickAvatarImage(
+    ImageSource source,
+    void Function(String newAvatar) onAvatarPicked,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picker = ImagePicker();
+    try {
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 600,
+        maxHeight: 600,
+        imageQuality: 75,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        onAvatarPicked(base64String);
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo cargar la imagen: $e')),
+      );
+    }
+  }
+
   // Modal deslizable con el formulario
   void _showEditProfileModal(BuildContext context) {
     final formKey = GlobalKey<FormState>();
@@ -54,10 +82,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
+        final mediaQuery = MediaQuery.of(sheetContext);
+        final bottomInset = mediaQuery.viewInsets.bottom;
+        final bottomPadding = mediaQuery.padding.bottom;
+
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (modalContext, setModalState) {
             return Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -66,8 +99,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               padding: EdgeInsets.only(
                 left: 24,
                 right: 24,
-                top: 24,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+                top: 20,
+                bottom: bottomInset > 0 ? bottomInset + 16 : bottomPadding + 28,
               ),
               child: SingleChildScrollView(
                 child: Form(
@@ -99,10 +132,78 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                       // Selector de Foto de Perfil
                       const Text(
-                        'Selecciona tu foto de perfil',
+                        'Foto de perfil',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: primaryDark),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+
+                      // Vista previa actual y botones de Cámara y Galería
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: brandBrown, width: 2.5),
+                            ),
+                            child: CircleAvatar(
+                              radius: 30,
+                              backgroundImage: PetImageHelper.getProvider(selectedAvatar),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _pickAvatarImage(
+                                      ImageSource.camera,
+                                      (newAvatar) => setModalState(() => selectedAvatar = newAvatar),
+                                    ),
+                                    icon: const Icon(Icons.camera_alt_outlined, size: 16, color: brandBrown),
+                                    label: const Text(
+                                      'Cámara',
+                                      style: TextStyle(color: brandBrown, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      side: const BorderSide(color: brandBrown),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _pickAvatarImage(
+                                      ImageSource.gallery,
+                                      (newAvatar) => setModalState(() => selectedAvatar = newAvatar),
+                                    ),
+                                    icon: const Icon(Icons.photo_library_outlined, size: 16, color: brandBrown),
+                                    label: const Text(
+                                      'Galería',
+                                      style: TextStyle(color: brandBrown, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      side: const BorderSide(color: brandBrown),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      const Text(
+                        'O elige un avatar sugerido:',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textMuted),
+                      ),
+                      const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: presetAvatars.map((url) {
@@ -123,7 +224,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ),
                               ),
                               child: CircleAvatar(
-                                radius: 26,
+                                radius: 24,
                                 backgroundImage: NetworkImage(url),
                               ),
                             ),
@@ -249,7 +350,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             prefixIcon: Icon(icon, size: 20, color: brandBrown),
             contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             filled: true,
-            fillColor: bgColor.withOpacity(0.5),
+            fillColor: bgColor.withValues(alpha: 0.5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -324,7 +425,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -336,7 +437,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             children: [
               CircleAvatar(
                 radius: 36,
-                backgroundImage: NetworkImage(_viewModel.avatarUrl),
+                backgroundImage: PetImageHelper.getProvider(_viewModel.avatarUrl),
               ),
               Positioned(
                 bottom: 0,
@@ -421,13 +522,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -436,31 +537,36 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: brandBrown.withOpacity(0.12),
+              color: brandBrown.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: brandBrown, size: 20),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryDark,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryDark,
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 11, color: textMuted),
-              ),
-            ],
-          )
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 11, color: textMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -469,54 +575,59 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildSettingsCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildListTile(
-            icon: Icons.person_outline,
-            title: 'Datos personales',
-            subtitle: _viewModel.phone,
-            onTap: () => _showEditProfileModal(context),
-          ),
-          const Divider(height: 1, indent: 56, endIndent: 16),
-          _buildListTile(
-            icon: Icons.notifications_none,
-            title: 'Notificaciones de alerta',
-            trailing: Switch.adaptive(
-              value: _viewModel.notificationsEnabled,
-              activeColor: brandBrown,
-              onChanged: (val) {
-                _viewModel.toggleNotifications(val);
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            _buildListTile(
+              icon: Icons.person_outline,
+              title: 'Datos personales',
+              subtitle: _viewModel.phone,
+              onTap: () => _showEditProfileModal(context),
+            ),
+            const Divider(height: 1, indent: 56, endIndent: 16),
+            _buildListTile(
+              icon: Icons.notifications_none,
+              title: 'Notificaciones de alerta',
+              trailing: Switch.adaptive(
+                value: _viewModel.notificationsEnabled,
+                activeThumbColor: brandBrown,
+                activeTrackColor: brandBrown.withValues(alpha: 0.5),
+                onChanged: (val) {
+                  _viewModel.toggleNotifications(val);
+                },
+              ),
+            ),
+            const Divider(height: 1, indent: 56, endIndent: 16),
+            _buildListTile(
+              icon: Icons.security,
+              title: 'Seguridad y contraseña',
+              onTap: () => _viewModel.onChangePassword(context),
+            ),
+            const Divider(height: 1, indent: 56, endIndent: 16),
+            _buildListTile(
+              icon: Icons.help_outline,
+              title: 'Centro de ayuda',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpCenterScreen()),
+                );
               },
             ),
-          ),
-          const Divider(height: 1, indent: 56, endIndent: 16),
-          _buildListTile(
-            icon: Icons.security,
-            title: 'Seguridad y contraseña',
-            onTap: () => _viewModel.onChangePassword(context),
-          ),
-          const Divider(height: 1, indent: 56, endIndent: 16),
-          _buildListTile(
-            icon: Icons.help_outline,
-            title: 'Centro de ayuda',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HelpCenterScreen()),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -528,24 +639,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(10),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: brandBrown, size: 20),
         ),
-        child: Icon(icon, color: brandBrown, size: 20),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: primaryDark),
+        ),
+        subtitle: subtitle != null
+            ? Text(subtitle, style: const TextStyle(fontSize: 12, color: textMuted))
+            : null,
+        trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        onTap: onTap,
       ),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: primaryDark),
-      ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(fontSize: 12, color: textMuted))
-          : null,
-      trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-      onTap: onTap,
     );
   }
 

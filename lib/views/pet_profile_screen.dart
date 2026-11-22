@@ -160,7 +160,7 @@ class _PetProfileViewState extends State<PetProfileView> {
                   // él puede editar o marcar como rescatado.
                   if (!_viewModel.isOwner) _buildContactCard(context),
                   if (_viewModel.isOwner) _buildBottomActions(context),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 24 + MediaQuery.of(context).padding.bottom + 24),
                 ],
               ),
             ),
