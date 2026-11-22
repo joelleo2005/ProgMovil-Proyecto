@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'map_screen.dart';
-import 'pet_profile_screen.dart';
 import 'reports_screen.dart';
 import 'user_profile_screen.dart';
-import '../viewmodels/map_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,14 +13,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    // Inyectamos el ViewModel del mapa solo para esta pantalla
-    ChangeNotifierProvider(
-      create: (_) => MapViewModel(),
-      child: const MapScreen(),
-    ),
-    const ReportsScreen(),
-    const UserProfileScreen(),
+  // El MapViewModel se crea una sola vez en main.dart (no aquí), para que
+  // el mapa y "Crear reporte" compartan la misma instancia.
+  final List<Widget> _screens = const [
+    MapScreen(),
+    ReportsScreen(),
+    UserProfileScreen(),
   ];
 
   @override

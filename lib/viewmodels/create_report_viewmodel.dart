@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../models/pet_report_model.dart';
 import '../repositories/pet_report_repository.dart';
 import '../repositories/user_repository.dart';
+import '../utils/formatters.dart';
 
 // Los enums ahora viven en el modelo; se re-exportan para las vistas.
 export '../models/pet_report_model.dart' show ReportType, PetType, PetReportModel;
@@ -32,6 +33,24 @@ class CreateReportViewModel extends ChangeNotifier {
   // Cambiamos a 'late' porque la inicializamos en el constructor
   late LatLng _selectedLocation;
   LatLng get selectedLocation => _selectedLocation;
+
+  /// Fecha y hora en que se vio a la mascota. Por defecto, ahora mismo.
+  DateTime _dateTime = DateTime.now();
+  DateTime get dateTime => _dateTime;
+  String get dateLabel => Formatters.date(_dateTime); // ej. "22 nov 2026"
+  String get timeLabel => Formatters.time(_dateTime); // ej. "10:30 AM"
+
+  /// Cambia el día manteniendo la hora elegida.
+  void setDate(DateTime day) {
+    _dateTime = DateTime(day.year, day.month, day.day, _dateTime.hour, _dateTime.minute);
+    notifyListeners();
+  }
+
+  /// Cambia la hora manteniendo el día elegido.
+  void setTime(TimeOfDay time) {
+    _dateTime = DateTime(_dateTime.year, _dateTime.month, _dateTime.day, time.hour, time.minute);
+    notifyListeners();
+  }
 
   bool _isPublishing = false;
   bool get isPublishing => _isPublishing;
@@ -63,8 +82,6 @@ class CreateReportViewModel extends ChangeNotifier {
     required String name,
     required String description,
     required String characteristics,
-    required String date,
-    required String time,
   }) async {
     final authUser = FirebaseAuth.instance.currentUser;
     if (authUser == null) {
@@ -74,6 +91,11 @@ class CreateReportViewModel extends ChangeNotifier {
     }
     if (description.trim().isEmpty) {
       _errorMessage = 'Agrega una descripción de la mascota.';
+      notifyListeners();
+      return false;
+    }
+    if (_dateTime.isAfter(DateTime.now())) {
+      _errorMessage = 'La fecha y hora no pueden estar en el futuro.';
       notifyListeners();
       return false;
     }
@@ -96,8 +118,9 @@ class CreateReportViewModel extends ChangeNotifier {
         imageUrl: PetReportModel.defaultImageFor(_petType),
         latitude: _selectedLocation.latitude,
         longitude: _selectedLocation.longitude,
-        date: date.trim(),
-        time: time.trim(),
+        // El modelo guarda fecha y hora como texto legible.
+        date: dateLabel,
+        time: timeLabel,
       );
       await _reportRepository.createReport(report);
       return true;

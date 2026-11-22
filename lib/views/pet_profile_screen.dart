@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import '../models/pet_report_model.dart';
 import '../viewmodels/map_viewmodel.dart';
@@ -98,51 +99,27 @@ class _PetProfileViewState extends State<PetProfileView> {
                   ),
                   const SizedBox(height: 22),
 
-                  const Text(
-                    'Características',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: primaryDark,
+                  // El formulario solo tiene un campo "Color / Características",
+                  // así que mostramos una sola tarjeta (y solo si tiene texto).
+                  if (_viewModel.characteristics.trim().isNotEmpty) ...[
+                    const Text(
+                      'Características',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: primaryDark,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Color',
-                          value: _viewModel.features['Color'] ?? '',
-                        ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _FeatureCard(
+                        title: 'Color / señas',
+                        value: _viewModel.characteristics,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Tamaño',
-                          value: _viewModel.features['Tamaño'] ?? '',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Edad',
-                          value: _viewModel.features['Edad'] ?? '',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _FeatureCard(
-                          title: 'Señas',
-                          value: _viewModel.features['Señas'] ?? '',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
+                    ),
+                    const SizedBox(height: 22),
+                  ],
 
                   const Text(
                     'Última ubicación conocida',
@@ -157,9 +134,10 @@ class _PetProfileViewState extends State<PetProfileView> {
 
                   // --- Nueva sección inferior ---
                   const SizedBox(height: 22),
-                  _buildContactCard(context),
-                  const SizedBox(height: 16),
-                  _buildBottomActions(context),
+                  // Quien publicó no necesita contactarse a sí mismo, y solo
+                  // él puede editar o marcar como rescatado.
+                  if (!_viewModel.isOwner) _buildContactCard(context),
+                  if (_viewModel.isOwner) _buildBottomActions(context),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -463,29 +441,41 @@ class _PetProfileViewState extends State<PetProfileView> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cardBorder),
-        image: DecorationImage(
-          image: NetworkImage(_viewModel.mapUrl),
-          fit: BoxFit.cover,
-        ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  shape: BoxShape.circle,
-                ),
-              ),
+          // Mini mapa fijo centrado en el reporte. Usa un TileLayer con
+          // userAgentPackageName, como el mapa principal: OpenStreetMap bloquea
+          // ("Access blocked") las descargas directas de tiles sin identificarse.
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: _viewModel.position,
+              initialZoom: 16,
+              interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
             ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.ulima.lostpaws',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _viewModel.position,
+                    width: 26,
+                    height: 26,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           Positioned(
             left: 10,

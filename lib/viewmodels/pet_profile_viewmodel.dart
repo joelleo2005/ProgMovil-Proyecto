@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'dart:math' as math;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -27,7 +25,6 @@ class PetProfileViewModel extends ChangeNotifier {
     tags = [
       if (r.date.isNotEmpty) r.date,
       if (r.time.isNotEmpty) r.time,
-      if (r.characteristics.isNotEmpty) r.characteristics,
     ];
     description = r.description;
     features = {
@@ -39,7 +36,7 @@ class PetProfileViewModel extends ChangeNotifier {
     lastLocation =
         'Lat: ${r.latitude.toStringAsFixed(4)}, Lng: ${r.longitude.toStringAsFixed(4)}';
     imageUrl = r.imageUrl;
-    mapUrl = _osmTileUrl(r.latitude, r.longitude, 15);
+    position = r.position;
     ownerName = r.ownerName.isEmpty ? 'Usuario de LostPaws' : r.ownerName;
     ownerInitials = _initials(ownerName);
     publishInfo = r.createdAt == null
@@ -82,8 +79,11 @@ class PetProfileViewModel extends ChangeNotifier {
   String lastLocation = 'Av. Insurgentes, Lima · Hace 5 min';
   String imageUrl =
       'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
-  String mapUrl =
-      'https://tile.openstreetmap.org/15/9480/16280.png';
+  /// Punto del reporte para el mini mapa (por defecto, Centro de Lima).
+  LatLng position = const LatLng(-12.046374, -77.042793);
+
+  /// Texto libre de "Color / Características" del formulario.
+  String get characteristics => report?.characteristics ?? (features['Color'] ?? '');
 
   // Datos del contacto
   String ownerInitials = 'MG';
@@ -107,15 +107,6 @@ class PetProfileViewModel extends ChangeNotifier {
     if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'hace ${diff.inHours} h';
     return 'hace ${diff.inDays} días';
-  }
-
-  /// URL del tile de OpenStreetMap que contiene la coordenada.
-  static String _osmTileUrl(double lat, double lng, int zoom) {
-    final n = math.pow(2, zoom).toDouble();
-    final x = ((lng + 180) / 360 * n).floor();
-    final latRad = lat * math.pi / 180;
-    final y = ((1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) / 2 * n).floor();
-    return 'https://tile.openstreetmap.org/$zoom/$x/$y.png';
   }
 
   void shareViaGmail(BuildContext context) {

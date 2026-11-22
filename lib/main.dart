@@ -26,7 +26,8 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        ChangeNotifierProvider(create: (_) => MapViewModel()), // <-- Añadido aquí
+        // Un solo MapViewModel para toda la app (mapa + "Crear reporte").
+        ChangeNotifierProvider(create: (_) => MapViewModel()),
       ],
       child: const LostPawsApp(),
     ),
