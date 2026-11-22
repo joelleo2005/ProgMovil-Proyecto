@@ -31,6 +31,35 @@ class LocationService {
     return defaultLocation;
   }
 
+  /// Busca un lugar por nombre (distrito, calle, parque...) usando Nominatim,
+  /// el buscador gratuito de OpenStreetMap. Devuelve null si no lo encuentra.
+  ///
+  /// Nominatim exige identificar la app con un User-Agent y no hacer más de
+  /// una búsqueda por segundo (por eso solo buscamos al presionar "Buscar").
+  Future<LatLng?> searchPlace(String query) async {
+    final text = query.trim();
+    if (text.isEmpty) return null;
+
+    final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+      'q': text,
+      'format': 'json',
+      'limit': '1',
+      'accept-language': 'es',
+    });
+    final response = await _client.get(uri, headers: {
+      'User-Agent': 'LostPaws/1.0 (proyecto universitario Universidad de Lima)',
+    }).timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) return null;
+
+    final results = json.decode(response.body) as List<dynamic>;
+    if (results.isEmpty) return null;
+    final first = results.first as Map<String, dynamic>;
+    final lat = double.tryParse('${first['lat']}');
+    final lon = double.tryParse('${first['lon']}');
+    if (lat == null || lon == null) return null;
+    return LatLng(lat, lon);
+  }
+
   /// Distancia en metros entre dos puntos.
   double distanceInMeters(LatLng a, LatLng b) {
     return Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);

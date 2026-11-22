@@ -111,6 +111,68 @@ class UserProfileViewModel extends ChangeNotifier {
     }
   }
 
+  /// "Seguridad y contraseña": Firebase envía al correo del usuario un enlace
+  /// para elegir una contraseña nueva (así nunca manejamos contraseñas aquí).
+  void onChangePassword(BuildContext context) {
+    final user = _authRepository.currentUser;
+    final messenger = ScaffoldMessenger.of(context);
+    if (user == null || (user.email ?? '').isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No hay un correo asociado a esta cuenta.')),
+      );
+      return;
+    }
+
+    // Quien entró con Google no tiene contraseña en LostPaws: la gestiona Google.
+    final usesPassword = user.providerData.any((p) => p.providerId == 'password');
+    if (!usesPassword) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Iniciaste sesión con Google: tu contraseña se cambia desde tu cuenta de Google.'),
+        ),
+      );
+      return;
+    }
+
+    final email = user.email!;
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cambiar contraseña'),
+        content: Text(
+          'Te enviaremos un enlace a $email para que elijas una contraseña nueva.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF906A55),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                await _authRepository.sendPasswordReset(email);
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Listo. Revisa tu correo $email (también en spam).')),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(AuthRepository.messageFor(e))),
+                );
+              }
+            },
+            child: const Text('Enviar enlace', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void onLogout(BuildContext context) {
     showDialog(
       context: context,

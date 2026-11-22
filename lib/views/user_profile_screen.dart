@@ -503,7 +503,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           _buildListTile(
             icon: Icons.security,
             title: 'Seguridad y contraseña',
-            onTap: () {},
+            onTap: () => _viewModel.onChangePassword(context),
           ),
           const Divider(height: 1, indent: 56, endIndent: 16),
           _buildListTile(

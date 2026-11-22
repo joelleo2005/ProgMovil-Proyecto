@@ -72,6 +72,45 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ubicación elegida a mano (cuando el GPS falla o da una posición mala).
+  /// Solo dura mientras la app esté abierta: al reiniciarla se usa el GPS.
+  void setManualLocation(LatLng location) {
+    _userLocation = location;
+    notifyListeners();
+  }
+
+  // ---- Búsqueda de zonas ----
+
+  bool _isSearching = false;
+  bool get isSearching => _isSearching;
+
+  /// Busca una zona por nombre. Devuelve su ubicación, o null si no se
+  /// encontró (en ese caso [searchError] explica qué pasó).
+  Future<LatLng?> searchPlace(String query) async {
+    if (query.trim().isEmpty) return null;
+    _isSearching = true;
+    _searchError = null;
+    notifyListeners();
+    try {
+      final result = await _locationService.searchPlace(query);
+      if (result == null) _searchError = 'No encontramos "${query.trim()}". Prueba con otro nombre.';
+      return result;
+    } catch (e) {
+      _searchError = 'No se pudo buscar. Revisa tu conexión a internet.';
+      return null;
+    } finally {
+      _isSearching = false;
+      notifyListeners();
+    }
+  }
+
+  String? _searchError;
+  String? get searchError => _searchError;
+
+  /// Cantidad de reportes perdidos / encontrados visibles (para la leyenda).
+  int get lostCount => _allPets.where((p) => p.isLost).length;
+  int get foundCount => _allPets.where((p) => !p.isLost).length;
+
   /// Distancia legible entre la ubicación del usuario y un punto.
   String distanceTo(LatLng point) {
     final meters = _locationService.distanceInMeters(_userLocation, point);

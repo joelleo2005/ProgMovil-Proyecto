@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'help_center_screen.dart';
 import 'pet_profile_screen.dart';
 import '../viewmodels/map_viewmodel.dart';
 
@@ -14,6 +15,143 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Acerca (+1) o aleja (-1) el mapa, sin salir del rango 3..18.
+  void _zoomBy(double delta) {
+    final camera = _mapController.camera;
+    final zoom = (camera.zoom + delta).clamp(3.0, 18.0);
+    _mapController.move(camera.center, zoom);
+  }
+
+  Widget _buildZoomButton(IconData icon, VoidCallback onPressed) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        icon: Icon(icon, color: Colors.black87),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  /// Busca la zona escrita y mueve el mapa hacia ella.
+  Future<void> _search(String query) async {
+    FocusScope.of(context).unfocus();
+    final viewModel = context.read<MapViewModel>();
+    final result = await viewModel.searchPlace(query);
+    if (!mounted) return;
+    if (result != null) {
+      _mapController.move(result, 15.0);
+    } else if (viewModel.searchError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(viewModel.searchError!)),
+      );
+    }
+  }
+
+  /// Menú del mapa: leyenda de colores y accesos rápidos.
+  void _showMapMenu(MapViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cómo leer el mapa',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildLegendRow(
+                color: const Color(0xFFFF5252),
+                label: 'Mascota perdida',
+                count: viewModel.lostCount,
+              ),
+              _buildLegendRow(
+                color: const Color(0xFF4CAF50),
+                label: 'Mascota encontrada',
+                count: viewModel.foundCount,
+              ),
+              _buildLegendRow(color: const Color(0xFF2C2420), label: 'Tu ubicación'),
+              const Divider(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.my_location),
+                title: const Text('Volver a mi ubicación'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _centerMapOnUser(viewModel.userLocation);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.push_pin_outlined),
+                title: const Text('Fijar mi ubicación aquí'),
+                subtitle: const Text('Usa el centro del mapa como tu ubicación'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  viewModel.setManualLocation(_mapController.camera.center);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ubicación actualizada al centro del mapa.')),
+                  );
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Centro de ayuda'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendRow({required Color color, required String label, int? count}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
+          if (count != null)
+            Text('$count', style: const TextStyle(fontSize: 15, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
 
   // Añadimos esta variable para saber si debemos mover la cámara
   LatLng? _lastCenteredLocation;
@@ -71,6 +209,10 @@ class _MapScreenState extends State<MapScreen> {
           options: MapOptions(
             initialCenter: viewModel.userLocation,
             initialZoom: 15.0,
+            // OpenStreetMap solo tiene imágenes hasta el zoom 19; más allá
+            // se ve borroso. 3 = ver todo el continente.
+            minZoom: 3,
+            maxZoom: 18,
           ),
           children: [
             TileLayer(
@@ -138,12 +280,24 @@ class _MapScreenState extends State<MapScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                   ),
-                  child: const TextField(
+                  child: TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: _search,
                     decoration: InputDecoration(
-                      hintText: 'Buscar zona, colonia...',
-                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      hintText: 'Buscar distrito, calle, parque...',
+                      prefixIcon: viewModel.isSearching
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.search, color: Colors.grey),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey),
+                        onPressed: () => _searchController.clear(),
+                      ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 15),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
                     ),
                   ),
                 ),
@@ -159,7 +313,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.menu, color: Colors.black87),
-                  onPressed: () {},
+                  onPressed: () => _showMapMenu(viewModel),
                 ),
               ),
             ],
@@ -204,6 +358,27 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 );
               },
+            ),
+          ),
+        ),
+
+        // Botones de zoom (+ / −), encima del botón de ubicación
+        Positioned(
+          right: 22,
+          bottom: 100,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildZoomButton(Icons.add, () => _zoomBy(1)),
+                const SizedBox(width: 28, child: Divider(height: 1)),
+                _buildZoomButton(Icons.remove, () => _zoomBy(-1)),
+              ],
             ),
           ),
         ),

@@ -301,6 +301,8 @@ class _CreateReportViewState extends State<_CreateReportView> {
                           options: MapOptions(
                             initialCenter: viewModel.selectedLocation,
                             initialZoom: 15.0,
+                            minZoom: 3,
+                            maxZoom: 18,
                             // Al tocar el mapa, actualizamos la ubicación en el ViewModel
                             onTap: (tapPosition, point) {
                               viewModel.updateLocation(point);
