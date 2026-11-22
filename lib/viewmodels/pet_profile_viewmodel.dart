@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/pet_report_model.dart';
 import '../repositories/pet_report_repository.dart';
+import '../utils/contact_helper.dart';
 
 class PetProfileViewModel extends ChangeNotifier {
   /// [report] viene de Firestore. Si es null se muestran los datos de ejemplo.
@@ -38,6 +39,7 @@ class PetProfileViewModel extends ChangeNotifier {
     imageUrl = r.imageUrl;
     position = r.position;
     ownerName = r.ownerName.isEmpty ? 'Usuario de LostPaws' : r.ownerName;
+    ownerPhone = r.ownerPhone;
     ownerInitials = _initials(ownerName);
     publishInfo = r.createdAt == null
         ? 'Publicado recientemente'
@@ -88,6 +90,7 @@ class PetProfileViewModel extends ChangeNotifier {
   // Datos del contacto
   String ownerInitials = 'MG';
   String ownerName = 'María Gonzalez';
+  String ownerPhone = '+51 987 654 321';
   String publishInfo = 'Publicado hace 2 horas · 4 reportes';
 
   static String _formatDistance(double meters) {
@@ -141,15 +144,17 @@ class PetProfileViewModel extends ChangeNotifier {
     Navigator.maybePop(context);
   }
 
-  void onContactOwner(BuildContext context) {
-    final phone = report?.ownerPhone ?? '';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(phone.isEmpty
-            ? 'Iniciando llamada con $ownerName...'
-            : 'Contacta a $ownerName al $phone'),
-      ),
-    );
+  Future<void> onContactOwner(BuildContext context) async {
+    final phone = ownerPhone.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta publicación no tiene un número de contacto registrado.'),
+        ),
+      );
+      return;
+    }
+    await ContactHelper.openPhoneDialer(phone);
   }
 
 

@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 // Importa ambos ViewModels
+import '../utils/pet_image_helper.dart';
 import '../viewmodels/create_report_viewmodel.dart';
 import '../viewmodels/map_viewmodel.dart';
 
@@ -84,6 +87,86 @@ class _CreateReportViewState extends State<_CreateReportView> {
       initialTime: TimeOfDay.fromDateTime(viewModel.dateTime),
     );
     if (picked != null) viewModel.setTime(picked);
+  }
+
+  Future<void> _pickImage(ImageSource source, CreateReportViewModel viewModel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picker = ImagePicker();
+    try {
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 75,
+      );
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        viewModel.setCustomImageUrl(base64String);
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No se pudo acceder a la imagen: $e')),
+      );
+    }
+  }
+
+  void _showImageSourcePicker(BuildContext context, CreateReportViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Foto de la mascota',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF332D2A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined, color: Color(0xFF906A55)),
+                title: const Text('Tomar foto con la cámara', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickImage(ImageSource.camera, viewModel);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF906A55)),
+                title: const Text('Elegir de la galería', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickImage(ImageSource.gallery, viewModel);
+                },
+              ),
+              if (viewModel.customImageUrl != null)
+                ListTile(
+                  leading: const Icon(Icons.refresh, color: Colors.grey),
+                  title: const Text(
+                    'Restablecer imagen por defecto',
+                    style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    viewModel.setCustomImageUrl(null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _publish(CreateReportViewModel viewModel) async {
@@ -193,35 +276,59 @@ class _CreateReportViewState extends State<_CreateReportView> {
               _buildSectionTitle('Foto de la mascota'),
               Row(
                 children: [
-                  Container(
-                    height: 100,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.camera_alt, color: Colors.grey.shade400),
-                        const SizedBox(height: 4),
-                        Text('Cámara', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                      ],
+                  GestureDetector(
+                    onTap: () => _showImageSourcePicker(context, viewModel),
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: viewModel.customImageUrl != null ? brandBrown : brandBrown.withValues(alpha: 0.5),
+                          width: viewModel.customImageUrl != null ? 2 : 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.camera_alt, color: brandBrown, size: 28),
+                          const SizedBox(height: 6),
+                          Text(
+                            viewModel.customImageUrl != null ? 'Cambiar foto' : 'Cámara',
+                            style: TextStyle(
+                              color: brandBrown,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Foto seleccionada simulada
+                  // Foto seleccionada (personalizada o por defecto)
                   Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          // Imagen que se guardará con el reporte según el tipo de mascota
-                          PetReportModel.defaultImageFor(viewModel.petType),
+                        child: SizedBox(
                           height: 100,
                           width: 120,
-                          fit: BoxFit.cover,
+                          child: PetImageHelper.buildImage(
+                            viewModel.currentImageUrl,
+                            height: 100,
+                            width: 120,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       Positioned(

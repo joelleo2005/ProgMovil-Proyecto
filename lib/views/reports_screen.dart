@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/pet_image_helper.dart';
 import '../viewmodels/reports_viewmodel.dart';
 import 'pet_profile_screen.dart';
 
@@ -131,7 +132,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundImage: NetworkImage(report.imageUrl),
+                backgroundImage: PetImageHelper.getProvider(report.imageUrl),
               ),
               const SizedBox(width: 16),
               Expanded(

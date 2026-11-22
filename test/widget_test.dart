@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lost_paws/models/pet_report_model.dart';
+import 'package:lost_paws/utils/contact_helper.dart';
 import 'package:lost_paws/utils/formatters.dart';
 
 PetReportModel _report({
@@ -75,6 +76,23 @@ void main() {
 
     test('parseDateTime devuelve null con texto libre', () {
       expect(Formatters.parseDateTime('el lunes pasado', 'tarde'), isNull);
+    });
+  });
+
+  group('ContactHelper', () {
+    test('formatForDialer conserva dígitos y el prefijo +', () {
+      expect(ContactHelper.formatForDialer('+51 987 654 321'), '+51987654321');
+      expect(ContactHelper.formatForDialer('  987-654-321  '), '987654321');
+      expect(ContactHelper.formatForDialer('(01) 431-3040'), '014313040');
+      expect(ContactHelper.formatForDialer(''), '');
+    });
+
+    test('formatForWhatsApp formatea a dígitos puros y añade prefijo 51 si es celular peruano de 9 dígitos', () {
+      expect(ContactHelper.formatForWhatsApp('+51 987 654 321'), '51987654321');
+      expect(ContactHelper.formatForWhatsApp('987654321'), '51987654321');
+      expect(ContactHelper.formatForWhatsApp('+1 (555) 123-4567'), '15551234567');
+      expect(ContactHelper.formatForWhatsApp('51987654321'), '51987654321');
+      expect(ContactHelper.formatForWhatsApp(''), '');
     });
   });
 }

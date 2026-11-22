@@ -66,5 +66,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>whatsapp</string>
+		<string>https</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>LostPaws requiere acceso a la cámara para tomar fotos de las mascotas.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LostPaws requiere acceso a la galería para seleccionar fotos de las mascotas.</string>
 </dict>
 </plist>

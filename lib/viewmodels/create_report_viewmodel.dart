@@ -29,6 +29,7 @@ class CreateReportViewModel extends ChangeNotifier {
       _reportType = r.reportType;
       _petType = r.petType;
       _selectedLocation = r.position;
+      _customImageUrl = r.imageUrl;
       // Si la fecha guardada no se puede leer, usamos la de publicación.
       _dateTime = Formatters.parseDateTime(r.date, r.time) ?? r.createdAt ?? DateTime.now();
     }
@@ -46,6 +47,22 @@ class CreateReportViewModel extends ChangeNotifier {
 
   PetType _petType = PetType.perro;
   PetType get petType => _petType;
+
+  String? _customImageUrl;
+  String? get customImageUrl => _customImageUrl;
+
+  /// Imagen a mostrar en la vista previa del formulario:
+  /// si el usuario eligió una foto se usa esa; si no, la sugerida según especie.
+  String get currentImageUrl =>
+      _customImageUrl ??
+      (editing != null && editing!.imageUrl.isNotEmpty
+          ? editing!.imageUrl
+          : PetReportModel.defaultImageFor(_petType));
+
+  void setCustomImageUrl(String? url) {
+    _customImageUrl = url;
+    notifyListeners();
+  }
 
   // Cambiamos a 'late' porque la inicializamos en el constructor
   late LatLng _selectedLocation;
@@ -128,6 +145,8 @@ class CreateReportViewModel extends ChangeNotifier {
         // Si tenía la foto por defecto y cambió el tipo de mascota,
         // actualizamos también la foto por defecto.
         final usesDefaultImage = r.imageUrl == PetReportModel.defaultImageFor(r.petType);
+        final imageToSave = _customImageUrl ??
+            (usesDefaultImage ? PetReportModel.defaultImageFor(_petType) : r.imageUrl);
         await _reportRepository.updateReport(r.id, {
           'reportType': _reportType.name,
           'petType': _petType.name,
@@ -138,7 +157,7 @@ class CreateReportViewModel extends ChangeNotifier {
           'longitude': _selectedLocation.longitude,
           'date': dateLabel,
           'time': timeLabel,
-          if (usesDefaultImage) 'imageUrl': PetReportModel.defaultImageFor(_petType),
+          'imageUrl': imageToSave,
         });
         return true;
       } catch (e) {
@@ -162,7 +181,7 @@ class CreateReportViewModel extends ChangeNotifier {
         name: name.trim(),
         description: description.trim(),
         characteristics: characteristics.trim(),
-        imageUrl: PetReportModel.defaultImageFor(_petType),
+        imageUrl: _customImageUrl ?? PetReportModel.defaultImageFor(_petType),
         latitude: _selectedLocation.latitude,
         longitude: _selectedLocation.longitude,
         // El modelo guarda fecha y hora como texto legible.

@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'help_center_screen.dart';
 import 'pet_profile_screen.dart';
+import '../utils/pet_image_helper.dart';
 import '../viewmodels/map_viewmodel.dart';
 
 class MapScreen extends StatefulWidget {
@@ -431,62 +432,65 @@ class _MapScreenState extends State<MapScreen> {
       onTap: () {
         showModalBottomSheet(
           context: context,
+          useSafeArea: true,
           backgroundColor: Colors.white,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          builder: (sheetContext) => Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundImage: NetworkImage(pet.imageUrl),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pet.displayName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '${pet.statusLabel} · ${context.read<MapViewModel>().distanceTo(pet.position)}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
+          builder: (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: PetImageHelper.getProvider(pet.imageUrl),
                   ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF906A55),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pet.displayName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${pet.statusLabel} · ${context.read<MapViewModel>().distanceTo(pet.position)}',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ],
                     ),
                   ),
-                  onPressed: () {
-                    // 1. Cerramos el BottomSheet usando su propio contexto
-                    Navigator.pop(sheetContext);
-                    // 2. Navegamos usando el contexto de MapScreen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PetProfileView(report: pet),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF906A55),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  },
-                  child: const Text(
-                    'Ver perfil',
-                    style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () {
+                      // 1. Cerramos el BottomSheet usando su propio contexto
+                      Navigator.pop(sheetContext);
+                      // 2. Navegamos usando el contexto de MapScreen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PetProfileView(report: pet),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Ver perfil',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -507,7 +511,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
             child: CircleAvatar(
               radius: 22,
-              backgroundImage: NetworkImage(pet.imageUrl),
+              backgroundImage: PetImageHelper.getProvider(pet.imageUrl),
             ),
           ),
           const SizedBox(height: 4),

@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import '../models/pet_report_model.dart';
 import '../repositories/pet_report_repository.dart';
+import '../utils/contact_helper.dart';
+import '../utils/pet_image_helper.dart';
 import '../viewmodels/map_viewmodel.dart';
 import '../viewmodels/pet_profile_viewmodel.dart';
 
@@ -232,10 +234,10 @@ class _PetProfileViewState extends State<PetProfileView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => _viewModel.onContactOwner(context),
+              onPressed: _showContactOptions,
               icon: const Icon(Icons.phone_in_talk_outlined, color: Colors.white, size: 20),
               label: const Text(
-                'Contactar dueño',
+                'Contactar persona',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -253,6 +255,220 @@ class _PetProfileViewState extends State<PetProfileView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Muestra una selección de apps para contactar al dueño:
+  /// - Aplicación de teléfono (keypad prellenado sin llamar).
+  /// - WhatsApp (abre nuevo chat si está instalado).
+  Future<void> _showContactOptions() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final phone = _viewModel.ownerPhone.trim();
+    if (phone.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Esta publicación no tiene un número de contacto registrado.'),
+        ),
+      );
+      return;
+    }
+
+    final isWhatsAppInstalled = await ContactHelper.isWhatsAppInstalled();
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Contactar a ${_viewModel.ownerName}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Número registrado: $phone',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: textMuted,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Opción 1: Aplicación de llamadas (teclado con número prellenado, sin llamar)
+                _buildContactOptionTile(
+                  icon: Icons.dialpad_outlined,
+                  iconColor: actionBrown,
+                  iconBgColor: actionBrown.withValues(alpha: 0.12),
+                  title: 'Aplicación de teléfono',
+                  subtitle: 'Abrir teclado con el número listo para llamar',
+                  enabled: true,
+                  onTap: () async {
+                    Navigator.pop(bottomSheetContext);
+                    final success = await ContactHelper.openPhoneDialer(phone);
+                    if (!success) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir la aplicación de llamadas.'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                // Opción 2: WhatsApp (abre nuevo chat si está instalado)
+                _buildContactOptionTile(
+                  icon: Icons.chat_bubble_outline,
+                  iconColor: isWhatsAppInstalled ? const Color(0xFF25D366) : Colors.grey,
+                  iconBgColor: isWhatsAppInstalled
+                      ? const Color(0xFF25D366).withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  title: isWhatsAppInstalled ? 'WhatsApp' : 'WhatsApp (No disponible)',
+                  subtitle: isWhatsAppInstalled
+                      ? 'Abrir nuevo chat con el número registrado'
+                      : 'No está instalado en este dispositivo',
+                  enabled: isWhatsAppInstalled,
+                  badge: isWhatsAppInstalled ? null : 'No instalado',
+                  onTap: () async {
+                    Navigator.pop(bottomSheetContext);
+                    if (!isWhatsAppInstalled) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('WhatsApp no está instalado en este dispositivo.'),
+                        ),
+                      );
+                      return;
+                    }
+                    final success = await ContactHelper.openWhatsAppChat(phone);
+                    if (!success) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir WhatsApp.'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContactOptionTile({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool enabled = true,
+    String? badge,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: enabled ? const Color(0xFFFBF9F6) : const Color(0xFFF7F7F7),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: enabled ? cardBorder : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: enabled ? primaryDark : Colors.grey.shade600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badge,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: enabled ? textMuted : Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: enabled ? textMuted : Colors.grey.shade400,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -309,46 +525,49 @@ class _PetProfileViewState extends State<PetProfileView> {
   void _showShareMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Para que ocupe solo el espacio necesario
-          children: [
-            const Text(
-              'Compartir ubicación mediante...',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: primaryDark,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Para que ocupe solo el espacio necesario
+            children: [
+              const Text(
+                'Compartir ubicación mediante...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: primaryDark,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.mail, color: Color(0xFFEA4335)), // Rojo Google
-              title: const Text('Gmail', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaGmail(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.email_outlined, color: textMuted),
-              title: const Text('Otro correo', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaEmail(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.sms, color: Color(0xFF007AFF)), // Azul SMS
-              title: const Text('SMS', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaSMS(context),
-            ),
-            ListTile(
-              // Usamos un ícono de chat verde para simular WhatsApp (Material Icons no tiene el logo oficial)
-              leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
-              title: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () => _viewModel.shareViaWhatsApp(context),
-            ),
-          ],
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.mail, color: Color(0xFFEA4335)), // Rojo Google
+                title: const Text('Gmail', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () => _viewModel.shareViaGmail(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.email_outlined, color: textMuted),
+                title: const Text('Otro correo', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () => _viewModel.shareViaEmail(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.sms, color: Color(0xFF007AFF)), // Azul SMS
+                title: const Text('SMS', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () => _viewModel.shareViaSMS(context),
+              ),
+              ListTile(
+                // Usamos un ícono de chat verde para simular WhatsApp (Material Icons no tiene el logo oficial)
+                leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
+                title: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.w500)),
+                onTap: () => _viewModel.shareViaWhatsApp(context),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -362,7 +581,7 @@ class _PetProfileViewState extends State<PetProfileView> {
           width: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: NetworkImage(_viewModel.imageUrl),
+              image: PetImageHelper.getProvider(_viewModel.imageUrl),
               fit: BoxFit.cover,
             ),
           ),
