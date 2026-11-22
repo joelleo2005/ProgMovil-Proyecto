@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lost_paws/models/pet_report_model.dart';
+import 'package:lost_paws/utils/formatters.dart';
 
 PetReportModel _report({
   String name = 'Rocky',
@@ -54,6 +55,26 @@ void main() {
       expect(_report().isActive, isTrue);
       expect(_report(status: ReportStatus.rescatado).isActive, isFalse);
       expect(_report(reportType: ReportType.encontrada).isLost, isFalse);
+    });
+  });
+
+  group('Formatters', () {
+    test('date + time y parseDateTime son inversos', () {
+      final original = DateTime(2026, 11, 22, 15, 7);
+      final parsed = Formatters.parseDateTime(
+        Formatters.date(original),
+        Formatters.time(original),
+      );
+      expect(parsed, original);
+    });
+
+    test('parseDateTime entiende AM/PM y medianoche', () {
+      expect(Formatters.parseDateTime('1 ene 2026', '12:05 AM'), DateTime(2026, 1, 1, 0, 5));
+      expect(Formatters.parseDateTime('1 ene 2026', '12:30 PM'), DateTime(2026, 1, 1, 12, 30));
+    });
+
+    test('parseDateTime devuelve null con texto libre', () {
+      expect(Formatters.parseDateTime('el lunes pasado', 'tarde'), isNull);
     });
   });
 }

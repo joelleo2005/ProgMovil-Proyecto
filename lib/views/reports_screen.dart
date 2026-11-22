@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../viewmodels/reports_viewmodel.dart';
+import 'pet_profile_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -96,6 +97,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildReportCard(BuildContext context, MyReport report) {
+    // Tocar la tarjeta abre el detalle del reporte
+    // (los botones Editar / Confirmar rescate tienen su propia acción).
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PetProfileView(report: report)),
+      ),
+      child: _buildReportCardContent(context, report),
+    );
+  }
+
+  Widget _buildReportCardContent(BuildContext context, MyReport report) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

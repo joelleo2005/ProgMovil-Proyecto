@@ -55,11 +55,10 @@ class ReportsViewModel extends ChangeNotifier {
   }
 
   // Acciones de los botones
+  /// Abre el formulario en modo edición. Al guardar, la lista se actualiza
+  /// sola porque escucha a Firestore en tiempo real.
   void onEditPressed(BuildContext context, MyReport report) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Editando reporte de ${report.displayName}...')),
-    );
-    // Aquí iría la navegación a la pantalla de edición
+    Navigator.pushNamed(context, '/create_report', arguments: report);
   }
 
   // Nueva función para confirmar rescate con diálogo en dos pasos

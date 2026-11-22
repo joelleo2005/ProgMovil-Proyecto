@@ -14,9 +14,16 @@ class CreateReportScreen extends StatelessWidget {
     // 1. Leemos la ubicación actual del GPS desde el MapViewModel principal
     final userLocation = context.read<MapViewModel>().userLocation;
 
+    // Si se abrió con un reporte como argumento, es "Editar reporte":
+    //   Navigator.pushNamed(context, '/create_report', arguments: report)
+    final editing = ModalRoute.of(context)?.settings.arguments as PetReportModel?;
+
     return ChangeNotifierProvider(
       // 2. Le pasamos esa ubicación como punto de partida al reporte
-      create: (_) => CreateReportViewModel(initialLocation: userLocation),
+      create: (_) => CreateReportViewModel(
+        initialLocation: userLocation,
+        editing: editing,
+      ),
       child: const _CreateReportView(),
     );
   }
@@ -39,6 +46,18 @@ class _CreateReportViewState extends State<_CreateReportView> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _characteristicsController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // En modo edición, llenamos el formulario con los datos actuales.
+    final editing = context.read<CreateReportViewModel>().editing;
+    if (editing != null) {
+      _nameController.text = editing.name;
+      _descriptionController.text = editing.description;
+      _characteristicsController.text = editing.characteristics;
+    }
+  }
 
   @override
   void dispose() {
@@ -79,7 +98,9 @@ class _CreateReportViewState extends State<_CreateReportView> {
     if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Reporte publicado!')),
+        SnackBar(
+          content: Text(viewModel.isEditing ? 'Cambios guardados' : '¡Reporte publicado!'),
+        ),
       );
       // Volvemos al mapa devolviendo la ubicación para centrar la cámara ahí.
       Navigator.pop(context, viewModel.selectedLocation);
@@ -133,9 +154,9 @@ class _CreateReportViewState extends State<_CreateReportView> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
-                    'Crear reporte',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF332D2A)),
+                  Text(
+                    viewModel.isEditing ? 'Editar reporte' : 'Crear reporte',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF332D2A)),
                   ),
                 ],
               ),
@@ -398,7 +419,10 @@ class _CreateReportViewState extends State<_CreateReportView> {
                           width: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                         )
-                      : const Text('Publicar reporte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      : Text(
+                          viewModel.isEditing ? 'Guardar cambios' : 'Publicar reporte',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),

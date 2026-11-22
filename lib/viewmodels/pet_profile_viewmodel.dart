@@ -152,11 +152,6 @@ class PetProfileViewModel extends ChangeNotifier {
     );
   }
 
-  void onEditReport(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Abriendo edición de reporte...')),
-    );
-  }
 
   Future<void> onMarkRescued(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);

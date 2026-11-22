@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import '../models/pet_report_model.dart';
+import '../repositories/pet_report_repository.dart';
 import '../viewmodels/map_viewmodel.dart';
 import '../viewmodels/pet_profile_viewmodel.dart';
 
@@ -16,7 +17,7 @@ class PetProfileView extends StatefulWidget {
 }
 
 class _PetProfileViewState extends State<PetProfileView> {
-  late final PetProfileViewModel _viewModel;
+  late PetProfileViewModel _viewModel;
 
   // Paleta de diseño
   static const Color primaryDark = Color(0xFF221915);
@@ -36,6 +37,25 @@ class _PetProfileViewState extends State<PetProfileView> {
       report: widget.report,
       userLocation: context.read<MapViewModel>().userLocation,
     );
+  }
+
+  /// Abre "Editar reporte" y, si se guardaron cambios, vuelve a leer el
+  /// reporte de Firestore para mostrar los datos actualizados.
+  Future<void> _openEdit() async {
+    final report = _viewModel.report;
+    if (report == null) return;
+
+    final saved = await Navigator.pushNamed(context, '/create_report', arguments: report);
+    if (saved == null || !mounted) return;
+
+    final updated = await PetReportRepository().getReport(report.id);
+    if (updated == null || !mounted) return;
+    setState(() {
+      _viewModel = PetProfileViewModel(
+        report: updated,
+        userLocation: context.read<MapViewModel>().userLocation,
+      );
+    });
   }
 
   @override
@@ -242,7 +262,7 @@ class _PetProfileViewState extends State<PetProfileView> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: () => _viewModel.onEditReport(context),
+            onPressed: _openEdit,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               side: const BorderSide(color: textMuted),

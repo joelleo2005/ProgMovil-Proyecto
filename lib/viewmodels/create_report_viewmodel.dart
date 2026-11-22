@@ -12,14 +12,31 @@ export '../models/pet_report_model.dart' show ReportType, PetType, PetReportMode
 
 class CreateReportViewModel extends ChangeNotifier {
   // Recibimos la ubicación GPS del dispositivo al abrir la pantalla
+  //
+  // Si llega [editing], la pantalla funciona en modo "Editar reporte":
+  // se cargan los datos del reporte y al guardar se actualiza en Firestore.
   CreateReportViewModel({
     required LatLng initialLocation,
+    this.editing,
     PetReportRepository? reportRepository,
     UserRepository? userRepository,
   })  : _reportRepository = reportRepository ?? PetReportRepository(),
         _userRepository = userRepository ?? UserRepository() {
     _selectedLocation = initialLocation;
+
+    final r = editing;
+    if (r != null) {
+      _reportType = r.reportType;
+      _petType = r.petType;
+      _selectedLocation = r.position;
+      // Si la fecha guardada no se puede leer, usamos la de publicación.
+      _dateTime = Formatters.parseDateTime(r.date, r.time) ?? r.createdAt ?? DateTime.now();
+    }
   }
+
+  /// Reporte que se está editando (null = reporte nuevo).
+  final PetReportModel? editing;
+  bool get isEditing => editing != null;
 
   final PetReportRepository _reportRepository;
   final UserRepository _userRepository;
@@ -104,6 +121,36 @@ class CreateReportViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    // ---- Modo edición: solo se actualizan los campos del formulario ----
+    final r = editing;
+    if (r != null) {
+      try {
+        // Si tenía la foto por defecto y cambió el tipo de mascota,
+        // actualizamos también la foto por defecto.
+        final usesDefaultImage = r.imageUrl == PetReportModel.defaultImageFor(r.petType);
+        await _reportRepository.updateReport(r.id, {
+          'reportType': _reportType.name,
+          'petType': _petType.name,
+          'name': name.trim(),
+          'description': description.trim(),
+          'characteristics': characteristics.trim(),
+          'latitude': _selectedLocation.latitude,
+          'longitude': _selectedLocation.longitude,
+          'date': dateLabel,
+          'time': timeLabel,
+          if (usesDefaultImage) 'imageUrl': PetReportModel.defaultImageFor(_petType),
+        });
+        return true;
+      } catch (e) {
+        _errorMessage = 'No se pudieron guardar los cambios: $e';
+        return false;
+      } finally {
+        _isPublishing = false;
+        notifyListeners();
+      }
+    }
+
+    // ---- Reporte nuevo ----
     try {
       final owner = await _userRepository.getUser(authUser.uid);
       final report = PetReportModel(
